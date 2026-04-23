@@ -2,8 +2,9 @@ name: Weekly Android Build (arm64-v8a)
 
 on:
   schedule:
+    # 每个星期日凌晨 0:00 运行 (UTC)
     - cron: '0 0 * * 0'
-  workflow_dispatch:
+  workflow_dispatch: 
 
 jobs:
   build-android:
@@ -15,31 +16,37 @@ jobs:
 
       - name: Checkout llama.cpp
         run: |
-          # 克隆 llama.cpp 到当前目录，因为你的 CMakeLists 依赖它
+          # 根据 CMakeLists.txt ，源码应位于项目根目录下的 llama.cpp 文件夹
           git clone --depth 1 https://github.com/ggerganov/llama.cpp.git llama.cpp
 
       - name: Setup Android NDK
-        uses: nwtgck/actions-setup-ndk@v1
-        with:
-          ndk-version: r30
-          add-to-path: true
+        run: |
+          # 使用官方 sdkmanager 安装 NDK 30 (或根据 2026 年的具体版本号)
+          echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "ndk;30.0.0"
+          # 设置环境变量供后续 CMake 使用
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/30.0.0" >> $GITHUB_ENV
 
       - name: Configure CMake
         run: |
           mkdir build
+          # 使用 library.cpp 构建名为 build_llama 的 SHARED 库 
           cmake -S . -B build \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-30 \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=ON
+            -DBUILD_SHARED_LIBS=ON \
+            -DGGML_NATIVE=OFF \
+            -DGGML_OPENMP=OFF
 
       - name: Build Shared Library
         run: |
+          # 链接 llama, common, android, log 等库 
           cmake --build build --config Release --parallel $(nproc)
 
       - name: Upload .so Artifact
         uses: actions/upload-artifact@v4
         with:
           name: libbuild_llama-v8a
+          # 库名由 CMakeLists.txt 中的项目名决定 
           path: build/libbuild_llama.so
