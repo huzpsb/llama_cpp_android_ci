@@ -1,0 +1,45 @@
+name: Weekly Android Build (arm64-v8a)
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Current Repo
+        uses: actions/checkout@v4
+
+      - name: Checkout llama.cpp
+        run: |
+          # 克隆 llama.cpp 到当前目录，因为你的 CMakeLists 依赖它
+          git clone --depth 1 https://github.com/ggerganov/llama.cpp.git llama.cpp
+
+      - name: Setup Android NDK
+        uses: nwtgck/actions-setup-ndk@v1
+        with:
+          ndk-version: r30
+          add-to-path: true
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-30 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON
+
+      - name: Build Shared Library
+        run: |
+          cmake --build build --config Release --parallel $(nproc)
+
+      - name: Upload .so Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbuild_llama-v8a
+          path: build/libbuild_llama.so
