@@ -2,9 +2,8 @@ name: Android NDK Weekly Build
 
 on:
   schedule:
-    # 每天世界协调时间 (UTC) 星期日 00:00 执行 (对应北京时间星期日早上 8:00)
+    # Runs at 00:00 UTC every Sunday
     - cron: '0 0 * * 0'
-  # 允许在 GitHub Actions 页面手动点击运行，方便测试
   workflow_dispatch: 
 
 jobs:
@@ -13,13 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 检出您的代码库
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive # 如果您将 llama.cpp 作为子模块引入，这里会自动拉取
+          submodules: recursive
 
-      # 2. 检查并拉取 llama.cpp (如果它不是 submodule 且不存在于当前目录)
       - name: Fetch llama.cpp if missing
         run: |
           if [ ! -d "llama.cpp" ]; then
@@ -27,15 +24,13 @@ jobs:
             git clone https://github.com/ggerganov/llama.cpp.git llama.cpp
           fi
 
-      # 3. 安装配置 NDK (指定版本 30)
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          version: 30.x # 自动匹配 NDK r30 版本的最新小版本
+          ndk-version: r30 # Adjust if you need a specific letter suffix like r30b
+          local-cache: true
 
-      # 4. 运行 CMake 配置
-      # 使用 Android NDK 的 toolchain 进行交叉编译
       - name: Configure CMake
         run: |
           cmake -B build \
@@ -44,15 +39,12 @@ jobs:
             -DANDROID_PLATFORM=android-30 \
             -DCMAKE_BUILD_TYPE=Release
 
-      # 5. 执行编译
       - name: Build Project
         run: cmake --build build --config Release -j$(nproc)
 
-      # 6. 收集并上传生成的 .so 文件
       - name: Upload Shared Library (SO)
         uses: actions/upload-artifact@v4
         with:
           name: libbuild_llama-arm64-v8a
-          # 匹配 build 目录下生成的所有 .so 文件（包括 llama.cpp 的公共库和您的 library.cpp 生成的库）
           path: build/**/*.so
           if-no-files-found: error
