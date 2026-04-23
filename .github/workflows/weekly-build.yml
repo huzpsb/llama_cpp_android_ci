@@ -28,7 +28,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r30 # Adjust if you need a specific letter suffix like r30b
+          ndk-version: r27d
           local-cache: true
 
       - name: Configure CMake
