@@ -42,6 +42,14 @@ jobs:
       - name: Build Project
         run: cmake --build build --config Release -j$(nproc)
 
+      - name: Strip Shared Library
+        run: |
+          # 使用 NDK 提供的 llvm-strip 工具移除未使用的符号以减小体积
+          # 路径通常位于 toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+          STRIP_TOOL=${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+          echo "Using strip tool: $STRIP_TOOL"
+          find build -name "*.so" -exec $STRIP_TOOL --strip-unneeded {} +
+
       - name: Upload Shared Library (SO)
         uses: actions/upload-artifact@v4
         with:
